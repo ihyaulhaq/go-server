@@ -24,6 +24,7 @@ func main() {
 	const port = "8080"
 
 	dbURL := os.Getenv("DB_URL")
+	enviroment := os.Getenv("PLATFORM")
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		log.Fatal(err)
@@ -33,6 +34,7 @@ func main() {
 	apiCfg := api.ApiConfig{
 		FileserverHits: atomic.Int32{},
 		DB:             dbQueries,
+		Platform:       enviroment,
 	}
 
 	fsHandler := apiCfg.MiddlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot))))
@@ -45,7 +47,10 @@ func main() {
 	mux.HandleFunc("GET /api/healthz", api.HandlerReadiness)
 
 	mux.HandleFunc("GET /admin/metrics", apiCfg.HandlerMetrics)
-	mux.HandleFunc("POST /admin/reset", apiCfg.HandlerReset)
+
+	mux.HandleFunc("POST /admin/reset", apiCfg.HandleDeleteUsers)
+
+	mux.HandleFunc("POST /api/users", apiCfg.HandleCreateUser)
 
 	srv := &http.Server{
 		Addr:    ":" + port,
