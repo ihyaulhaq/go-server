@@ -17,11 +17,13 @@ func main() {
 	apiCfg := apiConfig{
 		fileserverHits: atomic.Int32{},
 	}
+
 	fsHandler := apiCfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot))))
 
 	mux := http.NewServeMux()
 
 	mux.Handle("/app/", fsHandler)
+	mux.HandleFunc("POST /api/validate_chirp", handlerValidate)
 
 	mux.HandleFunc("GET /api/healthz", handlerReadiness)
 
