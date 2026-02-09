@@ -1,19 +1,19 @@
-package main
+package api
 
 import (
 	"fmt"
 	"net/http"
 )
 
-func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
+func (cfg *ApiConfig) MiddlewareMetricsInc(next http.Handler) http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		cfg.fileserverHits.Add(1)
+		cfg.FileserverHits.Add(1)
 		next.ServeHTTP(w, r)
 	})
 }
 
-func (cfg *apiConfig) handlerMetrics(w http.ResponseWriter, r *http.Request) {
+func (cfg *ApiConfig) HandlerMetrics(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "text/plain; charset=utf-8")
 	w.Write([]byte(
 		fmt.Sprintf(`<html>
@@ -21,5 +21,5 @@ func (cfg *apiConfig) handlerMetrics(w http.ResponseWriter, r *http.Request) {
 											<h1>Welcome, Chirpy Admin</h1>
 											<p>Chirpy has been visited %d times!</p>
 										</body>
-									</html>`, cfg.fileserverHits.Load())))
+									</html>`, cfg.FileserverHits.Load())))
 }

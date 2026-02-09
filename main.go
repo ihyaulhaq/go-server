@@ -1,34 +1,51 @@
 package main
 
 import (
+	"database/sql"
 	"log"
 	"net/http"
+	"os"
 	"sync/atomic"
+
+	"github.com/ihyaulhaq/go-server/internal/api"
+	"github.com/ihyaulhaq/go-server/internal/database"
+	"github.com/joho/godotenv"
+
+	_ "github.com/lib/pq"
 )
 
-type apiConfig struct {
-	fileserverHits atomic.Int32
-}
-
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading env file")
+	}
+
 	const filepathRoot = "."
 	const port = "8080"
 
-	apiCfg := apiConfig{
-		fileserverHits: atomic.Int32{},
+	dbURL := os.Getenv("DB_URL")
+	db, err := sql.Open("postgres", dbURL)
+	if err != nil {
+		log.Fatal(err)
+	}
+	dbQueries := database.New(db)
+
+	apiCfg := api.ApiConfig{
+		FileserverHits: atomic.Int32{},
+		DB:             dbQueries,
 	}
 
-	fsHandler := apiCfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot))))
+	fsHandler := apiCfg.MiddlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot))))
 
 	mux := http.NewServeMux()
 
 	mux.Handle("/app/", fsHandler)
-	mux.HandleFunc("POST /api/validate_chirp", handlerValidate)
+	mux.HandleFunc("POST /api/validate_chirp", api.HandlerValidate)
 
-	mux.HandleFunc("GET /api/healthz", handlerReadiness)
+	mux.HandleFunc("GET /api/healthz", api.HandlerReadiness)
 
-	mux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetrics)
-	mux.HandleFunc("POST /admin/reset", apiCfg.handlerReset)
+	mux.HandleFunc("GET /admin/metrics", apiCfg.HandlerMetrics)
+	mux.HandleFunc("POST /admin/reset", apiCfg.HandlerReset)
 
 	srv := &http.Server{
 		Addr:    ":" + port,

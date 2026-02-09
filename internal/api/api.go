@@ -1,4 +1,4 @@
-package main
+package api
 
 import (
 	"encoding/json"
@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func handlerValidate(w http.ResponseWriter, r *http.Request) {
+func HandlerValidate(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
 		Body string `json:"body"`
 	}
