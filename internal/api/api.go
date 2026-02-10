@@ -7,36 +7,6 @@ import (
 	"strings"
 )
 
-func HandlerValidate(w http.ResponseWriter, r *http.Request) {
-	type parameters struct {
-		Body string `json:"body"`
-	}
-
-	type returnVals struct {
-		CleanBody string `json:"cleaned_body"`
-	}
-
-	decoder := json.NewDecoder(r.Body)
-	params := parameters{}
-	err := decoder.Decode(&params)
-
-	if err != nil {
-		respondWithError(w, 500, "something went wrong")
-		return
-	}
-
-	if len(params.Body) > 140 {
-		respondWithError(w, 400, "Chrip is too long")
-		return
-	}
-
-	cleanedResp := replaceBadWords(params.Body)
-
-	respondWithJSON(w, 200, returnVals{
-		CleanBody: cleanedResp,
-	})
-}
-
 func replaceBadWords(w string) string {
 
 	badWords := map[string]bool{

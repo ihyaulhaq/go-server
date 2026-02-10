@@ -42,17 +42,3 @@ func (cfg *ApiConfig) HandleCreateUser(w http.ResponseWriter, r *http.Request) {
 	})
 
 }
-
-func (cfg *ApiConfig) HandleDeleteUsers(w http.ResponseWriter, r *http.Request) {
-	if cfg.Platform != "dev" {
-		respondWithError(w, http.StatusForbidden, "forbidden")
-		return
-	}
-
-	err := cfg.DB.DeleteUsers(r.Context())
-	if err != nil {
-		respondWithError(w, 500, "something went wrong")
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
-}
