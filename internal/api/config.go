@@ -10,4 +10,5 @@ type ApiConfig struct {
 	FileserverHits atomic.Int32
 	DB             *database.Queries
 	Platform       string
+	SecretKey      string
 }

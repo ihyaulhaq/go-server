@@ -26,6 +26,8 @@ func main() {
 	dbURL := os.Getenv("DB_URL")
 	enviroment := os.Getenv("PLATFORM")
 	db, err := sql.Open("postgres", dbURL)
+	jwtKey := os.Getenv("SECRET")
+
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -35,6 +37,7 @@ func main() {
 		FileserverHits: atomic.Int32{},
 		DB:             dbQueries,
 		Platform:       enviroment,
+		SecretKey:      jwtKey,
 	}
 
 	fsHandler := apiCfg.MiddlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot))))
@@ -52,7 +55,7 @@ func main() {
 	mux.HandleFunc("POST /api/users", apiCfg.HandleCreateUser)
 	mux.HandleFunc("POST /api/login", apiCfg.HandleLogin)
 
-	mux.HandleFunc("POST /api/chirps", apiCfg.HandleCreateChirps)
+	mux.Handle("POST /api/chirps", apiCfg.ProtectedFunc(apiCfg.HandleCreateChirps))
 	mux.HandleFunc("GET /api/chirps", apiCfg.HandleGetChirps)
 	mux.HandleFunc("GET /api/chirps/{id}", apiCfg.HandleGetChirp)
 

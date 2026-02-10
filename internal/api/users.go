@@ -15,6 +15,15 @@ type UserResponse struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Email     string    `json:"email"`
+	Token     string    `json:"token"`
+}
+
+type UserLoginResponse struct {
+	Id        uuid.UUID `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Email     string    `json:"email"`
+	Token     string    `json:"token"`
 }
 
 func (cfg *ApiConfig) HandleCreateUser(w http.ResponseWriter, r *http.Request) {
@@ -65,15 +74,23 @@ func (cfg *ApiConfig) HandleCreateUser(w http.ResponseWriter, r *http.Request) {
 
 func (cfg *ApiConfig) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
+		Email        string `json:"email"`
+		Password     string `json:"password"`
+		ExpiresInSec *int   `json:"expires_in_seconds"`
 	}
+
+	expiresIn := time.Hour
 
 	decoder := json.NewDecoder(r.Body)
 	params := parameters{}
 	err := decoder.Decode(&params)
 	if err != nil {
 		respondWithError(w, 400, "invalid request payload")
+		return
+	}
+
+	if params.Email == "" || params.Password == "" {
+		respondWithError(w, 400, "email and password are required")
 		return
 	}
 
@@ -94,11 +111,25 @@ func (cfg *ApiConfig) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := UserResponse{
+	if params.ExpiresInSec != nil {
+		requested := time.Duration(*params.ExpiresInSec) * time.Second
+		if requested < time.Hour && requested > 0 {
+			expiresIn = requested
+		}
+	}
+
+	token, err := auth.MakeJWT(user.ID, cfg.SecretKey, expiresIn)
+	if err != nil {
+		respondWithError(w, 500, "could not create token")
+		return
+	}
+
+	response := UserLoginResponse{
 		Id:        user.ID,
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
 		Email:     user.Email,
+		Token:     token,
 	}
 
 	respondWithJSON(w, 200, response)

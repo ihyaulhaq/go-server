@@ -51,3 +51,9 @@ func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 	}
 	w.Write(data)
 }
+
+func (cfg *ApiConfig) ProtectedFunc(
+	handler func(http.ResponseWriter, *http.Request),
+) http.Handler {
+	return cfg.MiddlewareAuth(http.HandlerFunc(handler))
+}
