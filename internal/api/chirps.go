@@ -36,6 +36,7 @@ func (cfg *ApiConfig) HandleCreateChirps(w http.ResponseWriter, r *http.Request)
 		respondWithError(w, 400, "Chirp is too long")
 		return
 	}
+
 	cleanedBody := replaceBadWords(params.Body)
 	params.Body = cleanedBody
 
@@ -79,4 +80,23 @@ func (cfg *ApiConfig) HandleGetChirps(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondWithJSON(w, 200, response)
+}
+
+func (cfg *ApiConfig) HandleGetChirp(w http.ResponseWriter, r *http.Request) {
+
+	chirpIdStr := r.PathValue("id")
+	chirpId, err := uuid.Parse(chirpIdStr)
+
+	if err != nil {
+		respondWithError(w, 400, "invalid chirp id")
+		return
+	}
+
+	chirp, err := cfg.DB.GetChirp(r.Context(), chirpId)
+	if err != nil {
+		respondWithError(w, 404, "chirp not found")
+		return
+	}
+
+	respondWithJSON(w, 200, chirp)
 }
