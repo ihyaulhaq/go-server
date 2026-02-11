@@ -15,13 +15,13 @@ func (cfg *ApiConfig) MiddlewareAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tokenStr, err := auth.GetBearerToken(r.Header)
 		if err != nil {
-			respondWithError(w, http.StatusUnauthorized, "Unauthorized")
+			respondWithError(w, http.StatusUnauthorized, err.Error())
 			return
 		}
 
 		userId, err := auth.ValidateJWt(tokenStr, cfg.SecretKey)
 		if err != nil {
-			respondWithError(w, http.StatusUnauthorized, "Unauthorized")
+			respondWithError(w, http.StatusUnauthorized, err.Error())
 			return
 		}
 

@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"net/http"
 	"strings"
@@ -20,11 +22,11 @@ func HashPassword(password string) (string, error) {
 }
 
 func CheckPasswordHash(password, hash string) (bool, error) {
-	macth, err := argon2id.ComparePasswordAndHash(password, hash)
+	match, err := argon2id.ComparePasswordAndHash(password, hash)
 	if err != nil {
 		return false, err
 	}
-	return macth, nil
+	return match, nil
 }
 
 func MakeJWT(userID uuid.UUID, tokenSecret string, expiresIn time.Duration) (string, error) {
@@ -32,8 +34,8 @@ func MakeJWT(userID uuid.UUID, tokenSecret string, expiresIn time.Duration) (str
 	claims := &jwt.RegisteredClaims{
 		Issuer:    "chirpy-access",
 		Subject:   userID.String(),
-		IssuedAt:  jwt.NewNumericDate(time.Now()),
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(expiresIn)),
+		IssuedAt:  jwt.NewNumericDate(time.Now().UTC()),
+		ExpiresAt: jwt.NewNumericDate(time.Now().UTC().Add(expiresIn)),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -89,4 +91,19 @@ func GetBearerToken(headers http.Header) (string, error) {
 	}
 
 	return token, nil
+}
+
+func MakeRefreshToken() (string, error) {
+
+	key := make([]byte, 32)
+
+	_, err := rand.Read(key)
+
+	if err != nil {
+		return "", errors.New("Cant make random key")
+	}
+
+	encodedKey := hex.EncodeToString(key)
+
+	return encodedKey, nil
 }
