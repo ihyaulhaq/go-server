@@ -3,6 +3,8 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -19,8 +21,7 @@ type ChirpsResponse struct {
 
 func (cfg *ApiConfig) HandleCreateChirps(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
-		Body   string    `json:"body"`
-		UserID uuid.UUID `json:"user_id"`
+		Body string `json:"body"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -37,12 +38,19 @@ func (cfg *ApiConfig) HandleCreateChirps(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	userIDVal := r.Context().Value(userIDContextKey)
+	userID, ok := userIDVal.(uuid.UUID)
+	if !ok {
+		respondWithError(w, 401, "unauthorized")
+		return
+	}
+
 	cleanedBody := replaceBadWords(params.Body)
 	params.Body = cleanedBody
 
 	chirp, err := cfg.DB.CreateChirps(r.Context(), database.CreateChirpsParams{
 		Body:   params.Body,
-		UserID: params.UserID,
+		UserID: userID,
 	})
 
 	if err != nil {
@@ -61,10 +69,28 @@ func (cfg *ApiConfig) HandleCreateChirps(w http.ResponseWriter, r *http.Request)
 }
 
 func (cfg *ApiConfig) HandleGetChirps(w http.ResponseWriter, r *http.Request) {
-	chirps, err := cfg.DB.GetChirps(r.Context())
+	authorIdStr := r.URL.Query().Get("author_id")
+	sortBy := r.URL.Query().Get("sort")
+
+	var chirps []database.Chirp
+	var err error
+
+	if authorIdStr != "" {
+
+		authorId, err := uuid.Parse(authorIdStr)
+		if err != nil {
+			respondWithError(w, 400, err.Error())
+			return
+		}
+
+		chirps, err = cfg.DB.GetChirpByAuthor(r.Context(), authorId)
+	} else {
+
+		chirps, err = cfg.DB.GetChirps(r.Context())
+	}
 
 	if err != nil {
-		respondWithError(w, 500, "something went wrong: cant get chirps")
+		respondWithError(w, 500, err.Error())
 		return
 	}
 
@@ -77,6 +103,16 @@ func (cfg *ApiConfig) HandleGetChirps(w http.ResponseWriter, r *http.Request) {
 			Body:      c.Body,
 			UserID:    c.UserID,
 		})
+	}
+
+	if strings.ToLower(sortBy) == "desc" {
+
+		sort.Slice(
+			response,
+			func(i, j int) bool {
+				return response[i].CreatedAt.After(response[j].CreatedAt)
+			},
+		)
 	}
 
 	respondWithJSON(w, 200, response)
@@ -99,4 +135,36 @@ func (cfg *ApiConfig) HandleGetChirp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondWithJSON(w, 200, chirp)
+}
+
+func (cfg *ApiConfig) HandleDeleteChirp(w http.ResponseWriter, r *http.Request) {
+	userIDVal := r.Context().Value(userIDContextKey)
+	userId, ok := userIDVal.(uuid.UUID)
+	if !ok {
+		respondWithError(w, 401, "unauthorized")
+		return
+	}
+
+	chirpIdStr := r.PathValue("id")
+	chirpId, err := uuid.Parse(chirpIdStr)
+	if err != nil {
+		respondWithError(w, 400, "invalid chirp id")
+		return
+	}
+
+	rows, err := cfg.DB.DeleteChirp(r.Context(), database.DeleteChirpParams{
+		ID:     chirpId,
+		UserID: userId,
+	})
+
+	if err != nil {
+		respondWithError(w, 500, "failed to delete chirp")
+		return
+	}
+	if rows == 0 {
+		respondWithError(w, 404, "chirp not found or unauthorized")
+		return
+	}
+
+	respondWithJSON(w, 200, map[string]string{"message": "chirp deleted successfully"})
 }

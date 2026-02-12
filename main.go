@@ -27,6 +27,7 @@ func main() {
 	enviroment := os.Getenv("PLATFORM")
 	db, err := sql.Open("postgres", dbURL)
 	jwtKey := os.Getenv("SECRET")
+	polka_key := os.Getenv("POLKA_KEY")
 
 	if err != nil {
 		log.Fatal(err)
@@ -38,6 +39,7 @@ func main() {
 		DB:             dbQueries,
 		Platform:       enviroment,
 		SecretKey:      jwtKey,
+		PolkaKey:       polka_key,
 	}
 
 	fsHandler := apiCfg.MiddlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot))))
@@ -61,10 +63,17 @@ func main() {
 		apiCfg.ProtectedFunc(apiCfg.HandleEditUser),
 	)
 
-	mux.Handle("POST /api/chirps", apiCfg.ProtectedFunc(apiCfg.HandleCreateChirps))
+	mux.Handle("POST /api/chirps",
+		apiCfg.ProtectedFunc(apiCfg.HandleCreateChirps),
+	)
 	mux.HandleFunc("GET /api/chirps", apiCfg.HandleGetChirps)
 	mux.HandleFunc("GET /api/chirps/{id}", apiCfg.HandleGetChirp)
+	mux.Handle(
+		"DELETE /api/chirps/{id}",
+		apiCfg.ProtectedFunc(apiCfg.HandleDeleteChirp),
+	)
 
+	mux.HandleFunc("POST /api/polka/webhooks", apiCfg.HandleUpgradeUserToChirpyRed)
 	srv := &http.Server{
 		Addr:    ":" + port,
 		Handler: mux,
